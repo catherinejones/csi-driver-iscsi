@@ -79,3 +79,80 @@ kubectl get csidriver
 NAME               ATTACHREQUIRED   PODINFOONMOUNT   STORAGECAPACITY   TOKENREQUESTS   REQUIRESREPUBLISH   MODES        AGE
 iscsi.csi.k8s.io   false            false            false             <unset>         false               Persistent   22m
 ```
+
+#### Get more details about a specific mount
+
+The iscsi CSI driver stores mount information in "/var/run/iscsi.csi.k8s.io/".
+
+For example, the following PersistentVolume:
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: grafana-database
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 50Gi
+  csi:
+    driver: iscsi.csi.k8s.io
+    fsType: ext4
+    volumeAttributes:
+      discoveryCHAPAuth: "false"
+      iqn: iqn.2000-01.com.synology:Synology.k8s-pv-grafana-database
+      iscsiInterface: default
+      lun: "1"
+      portals: '["192.168.1.2:3260"]'
+      sessionCHAPAuth: "false"
+      targetPortal: 192.168.1.2:3260
+    volumeHandle: grafana-database
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  volumeMode: Filesystem
+```
+
+
+Would result in a  would be a JSON encoded file at "/var/run/iscsi.csi.k8s.io/iscsi-grafana-database.json" (formatted for readability):
+
+```json
+{
+        "volume_name":"grafana-database",
+        "target_iqn":"iqn.2000-01.com.synology:Synology.k8s-pv-grafana-database",
+        "target_portal":["192.168.1.2:3260","192.168.1.2:3260"],
+        "lun":1,
+        "auth_type":"",
+        "discovery_secrets":{
+                "userName":"",
+                "password":""
+        },
+        "session_secrets":{
+                "userName":"",
+                "password":""
+        },
+        "interface":"default",
+        "mount_target_device":{
+                "name":"sdb",
+                "hctl":"1:0:0:1",
+                "children":null,
+                "type":"disk",
+                "tran":"iscsi",
+                "size":"50G"
+        },
+        "devices":[
+                {
+                        "name":"sdb",
+                        "hctl":"1:0:0:1",
+                        "children":null,
+                        "type":"disk",
+                        "tran":"iscsi",
+                        "size":"50G"
+                }
+        ],
+        "retry_count":10,
+        "check_interval":1,
+        "do_discovery":false,
+        "do_chap_discovery":false
+}
+```
