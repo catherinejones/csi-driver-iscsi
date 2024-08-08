@@ -21,13 +21,18 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	iscsiLib "github.com/kubernetes-csi/csi-driver-iscsi/pkg/iscsilib"
 	"k8s.io/kubernetes/pkg/volume/util"
+	mount "k8s.io/mount-utils"
 	"k8s.io/utils/exec"
-	"k8s.io/utils/mount"
 )
+
+// defaultFormatTimeout ensures that we give at least five minutes for a disk
+// format before trying to start a second format process.
+const defaultFormatTimeout time.Duration = 5 * time.Minute
 
 func getISCSIInfo(req *csi.NodePublishVolumeRequest) (*iscsiDisk, error) {
 	volName := req.GetVolumeId()
@@ -137,11 +142,18 @@ func getISCSIDiskMounter(iscsiInfo *iscsiDisk, req *csi.NodePublishVolumeRequest
 		fsType:       fsType,
 		readOnly:     readOnly,
 		mountOptions: mountOptions,
-		mounter:      &mount.SafeFormatAndMount{Interface: mount.New(""), Exec: exec.New()},
-		exec:         exec.New(),
-		targetPath:   req.GetTargetPath(),
-		deviceUtil:   util.NewDeviceHandler(util.NewIOHandler()),
-		connector:    buildISCSIConnector(iscsiInfo),
+		mounter: mount.NewSafeFormatAndMount(
+			mount.New(""),
+			exec.New(),
+			mount.WithMaxConcurrentFormat(
+				1,
+				defaultFormatTimeout,
+			),
+		),
+		exec:       exec.New(),
+		targetPath: req.GetTargetPath(),
+		deviceUtil: util.NewDeviceHandler(util.NewIOHandler()),
+		connector:  buildISCSIConnector(iscsiInfo),
 	}
 
 	return diskMounter
