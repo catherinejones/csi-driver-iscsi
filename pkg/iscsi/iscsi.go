@@ -82,6 +82,11 @@ func getISCSIInfo(req *csi.NodePublishVolumeRequest) (*iscsiDisk, error) {
 		chapSession = true
 	}
 
+	doDiscovery := false
+	if req.GetVolumeContext()["doDiscovery"] == "true" {
+		doDiscovery = true
+	}
+
 	var lunVal int32
 	if lun != "" {
 		l, err := strconv.Atoi(lun)
@@ -101,6 +106,7 @@ func getISCSIInfo(req *csi.NodePublishVolumeRequest) (*iscsiDisk, error) {
 		secret:          secret,
 		sessionSecret:   sessionSecret,
 		discoverySecret: discoverySecret,
+		doDiscovery:     doDiscovery,
 		InitiatorName:   initiatorName,
 	}
 
@@ -120,6 +126,7 @@ func buildISCSIConnector(iscsiInfo *iscsiDisk) *iscsiLib.Connector {
 		DiscoverySecrets: iscsiInfo.discoverySecret,
 		SessionSecrets:   iscsiInfo.sessionSecret,
 		Interface:        iscsiInfo.Iface,
+		DoDiscovery:      iscsiInfo.doDiscovery,
 	}
 
 	if iscsiInfo.sessionSecret != (iscsiLib.Secrets{}) {
@@ -247,6 +254,7 @@ type iscsiDisk struct {
 	secret          map[string]string
 	sessionSecret   iscsiLib.Secrets
 	discoverySecret iscsiLib.Secrets
+	doDiscovery     bool
 	InitiatorName   string
 	VolName         string
 }
